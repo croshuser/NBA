@@ -3,204 +3,247 @@ document.addEventListener("DOMContentLoaded", () => {
     loadAndParseCSV();
 });
 
+// Global database storage variables
 let teamDatabase = [];
 let playerDatabase = [];
 
 async function loadAndParseCSV() {
     try {
-        const response = await fetch('NBA DATA - Team Summaries (1).csv');
-        if (!response.ok) throw new Error("CSV file not found");
+        const response = await fetch('NBA DATA - Team Summaries (1).csv'); 
+        if (!response.ok) throw new Error("Could not find the CSV file.");
 
         const rawText = await response.text();
         const lines = rawText.split('\n');
-
+        
         const teamHeaders = lines[0].split(',');
         const playerHeaders = lines[1908].split(',');
 
-        // Parse team summaries (rows 1–1908)
+        // 1. Parse Team Summaries (Rows 2 to 1908)
         for (let i = 1; i < 1908; i++) {
             if (!lines[i].trim()) continue;
             const currentLine = lines[i].split(',');
-            const row = {};
+            const rowObject = {};
             teamHeaders.forEach((header, index) => {
                 const key = header.trim().replace(/^["']|["']$/g, '');
-                row[key] = currentLine[index] ? currentLine[index].trim().replace(/^["']|["']$/g, '') : '';
+                rowObject[key] = currentLine[index] ? currentLine[index].trim().replace(/^["']|["']$/g, '') : '';
             });
-            teamDatabase.push(row);
+            teamDatabase.push(rowObject);
         }
 
-        // Parse player data (rows 1910 to end)
+        // 2. Parse Player Data (Rows 1910 to end)
         for (let i = 1; i < lines.length; i++) {
-            if (i <= 1908) continue;
+            if (i <= 1908) continue; 
             if (!lines[i].trim()) continue;
+            
             const currentLine = lines[i].split(',');
-            const row = {};
+            const rowObject = {};
             playerHeaders.forEach((header, index) => {
                 const key = header.trim().replace(/^["']|["']$/g, '');
-                row[key] = currentLine[index] ? currentLine[index].trim().replace(/^["']|["']$/g, '') : '';
+                rowObject[key] = currentLine[index] ? currentLine[index].trim().replace(/^["']|["']$/g, '') : '';
             });
-            playerDatabase.push(row);
+            playerDatabase.push(rowObject);
         }
 
-        console.log(`Parsed: ${teamDatabase.length} teams, ${playerDatabase.length} players`);
-        setupSeasonDropdown();
+        console.log(`🟢 Successfully split data: ${teamDatabase.length} teams & ${playerDatabase.length} players parsed.`);
+        
+        // Populate the setup right away
+        setupSeasonDropdowns();
+        document.getElementById("simulateBtn").addEventListener("click", runSimulation);
+
     } catch (error) {
-        console.error("Error loading CSV:", error);
+        console.error("🔴 Error splitting stacked CSV file:", error.message);
     }
 }
 
-function setupSeasonDropdown() {
-    const seasonSelect = document.getElementById("season");
+function setupSeasonDropdowns() {
+    const seasonSelectA = document.getElementById("seasonA");
+    const seasonSelectB = document.getElementById("seasonB");
+
+    if (!seasonSelectA || !seasonSelectB) return;
+
+    // Pull unique seasons, filtered and cleaned up
     const allSeasons = teamDatabase.map(row => row.season || row.Season || row.yr).filter(Boolean);
     const uniqueSeasons = [...new Set(allSeasons)].sort((a, b) => b.localeCompare(a));
 
-    seasonSelect.innerHTML = uniqueSeasons.map(s => `<option value="${s}">${s}</option>`).join('');
-    seasonSelect.addEventListener("change", updateTeamDropdowns);
-    updateTeamDropdowns(); // initial load
+    seasonSelectA.innerHTML = "";
+    seasonSelectB.innerHTML = "";
+
+    uniqueSeasons.forEach(season => {
+        seasonSelectA.options[seasonSelectA.options.length] = new Option(season, season);
+        seasonSelectB.options[seasonSelectB.options.length] = new Option(season, season);
+    });
+
+    // Run updates immediately to replace the "Select a season first" placeholders
+    updateTeamDropdown('A');
+    updateTeamDropdown('B');
 }
 
-function updateTeamDropdowns() {
-    const season = document.getElementById("season").value;
-    const teams = teamDatabase
-        .filter(row => (row.season || row.Season || row.yr) === season)
-        .map(row => row.team || row.Team || row.tm)
-        .filter(Boolean)
-        .sort();
+function updateTeamDropdown(side) {
+    const seasonSelect = document.getElementById(`season${side}`);
+    const teamSelect = document.getElementById(`team${side}`);
+    
+    if (!seasonSelect || !teamSelect) return;
 
-    const teamA = document.getElementById("teamA");
-    const teamB = document.getElementById("teamB");
+    const selectedSeason = seasonSelect.value;
+    teamSelect.innerHTML = ""; // Wipe the older options list clean
 
-    teamA.innerHTML = teams.map(t => `<option value="${t}">${t}</option>`).join('');
-    teamB.innerHTML = teams.map(t => `<option value="${t}">${t}</option>`).join('');
+    // Filter our main team array to only pull rows matching the selected dropdown season
+    const filteredTeams = teamDatabase.filter(row => {
+        const rowSeason = row.season || row.Season || row.yr;
+        return rowSeason === selectedSeason;
+    });
+
+    // Sort alphabetically by team name
+    filteredTeams.sort((a, b) => {
+        const nameA = a.team || a.Team || a.tm || "";
+        const nameB = b.team || b.Team || b.tm || "";
+        return nameA.localeCompare(nameB);
+    });
+
+    // Append our filtered results to the dropdown items list
+    filteredTeams.forEach(row => {
+        const teamName = row.team || row.Team || row.tm;
+        if (teamName) {
+            teamSelect.options[teamSelect.options.length] = new Option(teamName, teamName);
+        }
+    });
 }
 
-// Simulation
-document.getElementById("simulate").addEventListener("click", runSimulation);
+/* ---------- SIMULATION ENGINE ---------- */
 
 function runSimulation() {
-    const season = document.getElementById("season").value;
+    const seasonA = document.getElementById("seasonA").value;
     const teamA = document.getElementById("teamA").value;
+    const seasonB = document.getElementById("seasonB").value;
     const teamB = document.getElementById("teamB").value;
-    const homeTeam = document.getElementById("home").value; // 'A' or 'B'
+    const home = document.getElementById("homeTeam").value;
 
-    const resultDiv = document.getElementById("result");
-    if (!teamA || !teamB) {
-        resultDiv.textContent = "Please select both teams.";
+    if (!teamA || !teamB || teamA === "Select a season first" || teamB === "Select a season first") {
+        alert("Please select both teams before simulating.");
         return;
     }
 
-    // Get team stats
-    const statsA = getTeamStats(season, teamA);
-    const statsB = getTeamStats(season, teamB);
+    // Find team stats
+    const statsA = findTeamStats(seasonA, teamA);
+    const statsB = findTeamStats(seasonB, teamB);
     if (!statsA || !statsB) {
-        resultDiv.textContent = "Could not find stats for one of the teams.";
+        alert("Team data not found. Check CSV columns.");
         return;
     }
 
-    // League averages for the season
-    const leagueAvg = getLeagueAverages(season);
-    if (!leagueAvg) {
-        resultDiv.textContent = "Could not compute league averages.";
-        return;
+    // Compute league averages for the corresponding seasons
+    const leagueAvgA = computeLeagueAverages(seasonA);
+    const leagueAvgB = computeLeagueAverages(seasonB);
+    // For cross-season matchups, average the two league environments
+    const leagueAvgORtg = (leagueAvgA.ORtg + leagueAvgB.ORtg) / 2;
+    const leagueAvgDRtg = (leagueAvgA.DRtg + leagueAvgB.DRtg) / 2;
+
+    // Player impact (win shares / BPM / VORP)
+    const playerImpactA = computePlayerImpact(seasonA, teamA);
+    const playerImpactB = computePlayerImpact(seasonB, teamB);
+
+    // Home court advantage (points)
+    const HCA_POINTS = 2.8;  // typical NBA home advantage
+    let homeBonusA = 0, homeBonusB = 0;
+    if (home === 'A') homeBonusA = HCA_POINTS;
+    else if (home === 'B') homeBonusB = HCA_POINTS;
+
+    // Expected possessions: average of the two teams' Pace values
+    const paceA = parseFloat(statsA.Pace) || 100;
+    const paceB = parseFloat(statsB.Pace) || 100;
+    const possessions = (paceA + paceB) / 2;
+
+    // Expected points per 100 possessions, adjusted for opponent defense + player impact
+    function adjOE(teamStats, oppDRtg, leagueDRtg, playerImpact) {
+        let baseORtg = parseFloat(teamStats.ORtg) || leagueAvgORtg;
+        // Factor in opponent DRtg relative to league average
+        let oppFactor = oppDRtg / leagueDRtg;  // >1 means easier defense, boost scoring
+        // Player impact: +0.8 points per 100 possessions per unit of impact (rough calibration)
+        let playerBonus = playerImpact * 0.8;
+        return (baseORtg * oppFactor) + playerBonus;
     }
 
-    // Player impact (VORP total)
-    const impactA = getPlayerImpact(season, teamA, leagueAvg.vorpAvg);
-    const impactB = getPlayerImpact(season, teamB, leagueAvg.vorpAvg);
+    const adjO_A = adjOE(statsA, parseFloat(statsB.DRtg) || leagueAvgDRtg, leagueAvgDRtg, playerImpactA);
+    const adjO_B = adjOE(statsB, parseFloat(statsA.DRtg) || leagueAvgDRtg, leagueAvgDRtg, playerImpactB);
 
-    // Compute expected points
-    const pace = (statsA.pace + statsB.pace) / 2; // average pace
-    const adjOffA = (statsA.ortg * leagueAvg.drtg) / statsB.drtg;
-    const adjOffB = (statsB.ortg * leagueAvg.drtg) / statsA.drtg;
+    // Expected points
+    const expectedPtsA = (adjO_A / 100) * possessions + homeBonusA;
+    const expectedPtsB = (adjO_B / 100) * possessions + homeBonusB;
 
-    let expPtsA = (adjOffA / 100) * pace * impactA;
-    let expPtsB = (adjOffB / 100) * pace * impactB;
+    // Random variance (realistic standard deviation ~ 10-12% of expected points)
+    const stdDev = 0.11;  // coefficient of variation
+    const simPtsA = Math.round(randomNormal(expectedPtsA, expectedPtsA * stdDev));
+    const simPtsB = Math.round(randomNormal(expectedPtsB, expectedPtsB * stdDev));
 
-    // Home court advantage (2.5 points)
-    if (homeTeam === 'A') expPtsA += 2.5;
-    else expPtsB += 2.5;
-
-    // Random variance (std dev ~8 points)
-    const stdDev = 8;
-    const ptsA = Math.round(expPtsA + randomNormal() * stdDev);
-    const ptsB = Math.round(expPtsB + randomNormal() * stdDev);
-
-    // Ensure non‑negative scores
-    const finalA = Math.max(0, ptsA);
-    const finalB = Math.max(0, ptsB);
-
-    resultDiv.innerHTML = `
-        <strong>${teamA}</strong> ${finalA} – ${finalB} <strong>${teamB}</strong><br>
-        <small>Home: ${homeTeam === 'A' ? teamA : teamB}</small>
-    `;
+    // Display result
+    const resultBox = document.getElementById("resultBox");
+    const resultText = document.getElementById("resultText");
+    resultBox.style.display = "block";
+    const winner = simPtsA > simPtsB ? teamA : (simPtsB > simPtsA ? teamB : "Draw");
+    resultText.textContent = `${teamA} (${seasonA})  ${simPtsA} - ${simPtsB}  ${teamB} (${seasonB})\nWinner: ${winner}\n\nExpected: ${expectedPtsA.toFixed(1)} - ${expectedPtsB.toFixed(1)}\nPossessions: ${possessions.toFixed(1)} | Adjusted ORtg: ${adjO_A.toFixed(1)} vs ${adjO_B.toFixed(1)}`;
 }
 
-function getTeamStats(season, teamAbbr) {
-    const row = teamDatabase.find(r => {
-        const s = r.season || r.Season || r.yr;
-        const t = r.team || r.Team || r.tm;
-        return s === season && t === teamAbbr;
+function findTeamStats(season, teamName) {
+    // Normalize team name matching
+    return teamDatabase.find(row => {
+        const s = row.season || row.Season || row.yr;
+        const t = row.team || row.Team || row.tm;
+        return s === season && t === teamName;
     });
-    if (!row) return null;
+}
+
+function computeLeagueAverages(season) {
+    const teams = teamDatabase.filter(row => (row.season || row.Season || row.yr) === season);
+    let sumORtg = 0, sumDRtg = 0, count = 0;
+    teams.forEach(t => {
+        const o = parseFloat(t.ORtg);
+        const d = parseFloat(t.DRtg);
+        if (!isNaN(o) && !isNaN(d)) {
+            sumORtg += o;
+            sumDRtg += d;
+            count++;
+        }
+    });
     return {
-        ortg: parseFloat(row.ORtg || row['ORtg'] || 0),
-        drtg: parseFloat(row.DRtg || row['DRtg'] || 0),
-        pace: parseFloat(row.Pace || row.pace || 0),
+        ORtg: count ? sumORtg / count : 110,   // fallback
+        DRtg: count ? sumDRtg / count : 110
     };
 }
 
-function getLeagueAverages(season) {
-    const teams = teamDatabase.filter(r => (r.season || r.Season || r.yr) === season);
-    if (teams.length === 0) return null;
-
-    let sumO = 0, sumD = 0, sumP = 0, sumV = 0;
-    teams.forEach(r => {
-        sumO += parseFloat(r.ORtg || 0);
-        sumD += parseFloat(r.DRtg || 0);
-        sumP += parseFloat(r.Pace || 0);
+function computePlayerImpact(season, teamName) {
+    // Try to use Win Shares (WS), then BPM, then VORP
+    const players = playerDatabase.filter(row => {
+        const s = row.season || row.Season || row.yr;
+        const t = row.tm || row.Team || row.team;
+        return s === season && t === teamName;
     });
+    let totalStat = 0;
+    let statFound = false;
 
-    // Compute average total VORP per team across the league
-    teams.forEach(r => {
-        const abbr = r.team || r.Team || r.tm;
-        const vorp = getTeamTotalVORP(season, abbr);
-        sumV += vorp;
-    });
+    // Decide which advanced stat to sum
+    const statPriority = ['WS', 'BPM', 'VORP'];
+    for (let stat of statPriority) {
+        if (players.length > 0 && players[0][stat] !== undefined) {
+            players.forEach(p => {
+                const val = parseFloat(p[stat]);
+                if (!isNaN(val)) totalStat += val;
+            });
+            statFound = true;
+            break;
+        }
+    }
+    if (!statFound) return 0;
 
-    return {
-        ortg: sumO / teams.length,
-        drtg: sumD / teams.length,
-        pace: sumP / teams.length,
-        vorpAvg: sumV / teams.length,
-    };
+    // Normalize: divide by number of players to get average, then scale to a ~0-5 impact range
+    const avgStat = players.length ? totalStat / players.length : 0;
+    // Scaling factor determined experimentally so that a superstar team adds ~3-4 points per 100 poss
+    return avgStat * 2.5;
 }
 
-function getTeamTotalVORP(season, teamAbbr) {
-    const players = playerDatabase.filter(p => {
-        const s = p.Season || p.season || '';
-        const t = p.Tm || p.tm || '';
-        return s === season && t === teamAbbr;
-    });
-    let totalVORP = 0;
-    players.forEach(p => {
-        const vorp = parseFloat(p.VORP || 0);
-        if (!isNaN(vorp)) totalVORP += vorp;
-    });
-    return totalVORP;
-}
-
-function getPlayerImpact(season, teamAbbr, leagueVorpAvg) {
-    const teamVorp = getTeamTotalVORP(season, teamAbbr);
-    // Multiplier: team VORP relative to league average (capped)
-    const diff = teamVorp - leagueVorpAvg;
-    const multiplier = 1 + diff * 0.02;  // 2% per VORP point difference
-    return Math.min(1.15, Math.max(0.85, multiplier));
-}
-
-// Box‑Muller transform for normal distribution
-function randomNormal() {
+function randomNormal(mean, stdDev) {
+    // Box-Muller transform
     let u = 0, v = 0;
-    while (u === 0) u = Math.random();
-    while (v === 0) v = Math.random();
-    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    while(u === 0) u = Math.random();
+    while(v === 0) v = Math.random();
+    return mean + stdDev * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
