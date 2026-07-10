@@ -1,1 +1,37 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Simulator</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a2e; color: #fff; text-align: center; padding: 50px; }
+        .box { background: #162447; padding: 30px; border-radius: 10px; display: inline-block; }
+        select, button { padding: 10px; margin: 10px; font-size: 16px; border-radius: 5px; }
+        button { background: #e43f5a; color: white; border: none; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>🏀 NBA Matchup Simulator</h1>
+    <p>Select two teams from your CSV data below:</p>
+
+    <div class="box">
+        <select id="teamA">
+            <option>Loading teams...</option>
+        </select>
+        
+        <span>VS</span>
+        
+        <select id="teamB">
+            <option>Loading teams...</option>
+        </select>
+        
+        <br>
+        <button onclick="alert('Simulation logic goes here next!')">Simulate Game</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
