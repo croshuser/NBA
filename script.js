@@ -17,7 +17,7 @@ async function loadAndParseCSV() {
         const teamHeaders = lines[0].split(',');
         const playerHeaders = lines[1908].split(',');
 
-        // 1. Parse Team Summaries
+        // 1. Parse Team Summaries (Rows 2 to 1908)
         for (let i = 1; i < 1908; i++) {
             if (!lines[i].trim()) continue;
             const currentLine = lines[i].split(',');
@@ -29,7 +29,7 @@ async function loadAndParseCSV() {
             teamDatabase.push(rowObject);
         }
 
-        // 2. Parse Player Data
+        // 2. Parse Player Data (Rows 1910 to end)
         for (let i = 1; i < lines.length; i++) {
             if (i <= 1908) continue; 
             if (!lines[i].trim()) continue;
@@ -43,9 +43,9 @@ async function loadAndParseCSV() {
             playerDatabase.push(rowObject);
         }
 
-        console.log(`🟢 Loaded ${teamDatabase.length} teams & ${playerDatabase.length} players.`);
+        console.log(`🟢 Successfully split data: ${teamDatabase.length} teams & ${playerDatabase.length} players parsed.`);
         
-        // Populate our initial season dropdowns
+        // Populate the setup right away
         setupSeasonDropdowns();
 
     } catch (error) {
@@ -57,7 +57,9 @@ function setupSeasonDropdowns() {
     const seasonSelectA = document.getElementById("seasonA");
     const seasonSelectB = document.getElementById("seasonB");
 
-    // Extract all unique seasons from our data, sort them newest to oldest
+    if (!seasonSelectA || !seasonSelectB) return;
+
+    // Pull unique seasons, filtered and cleaned up
     const allSeasons = teamDatabase.map(row => row.season || row.Season || row.yr).filter(Boolean);
     const uniqueSeasons = [...new Set(allSeasons)].sort((a, b) => b.localeCompare(a));
 
@@ -69,12 +71,11 @@ function setupSeasonDropdowns() {
         seasonSelectB.options[seasonSelectB.options.length] = new Option(season, season);
     });
 
-    // Automatically trigger the team lists to load for the default selected seasons
+    // Run updates immediately to replace the "Select a season first" placeholders
     updateTeamDropdown('A');
     updateTeamDropdown('B');
 }
 
-// This function fires automatically whenever a user changes the season dropdown
 function updateTeamDropdown(side) {
     const seasonSelect = document.getElementById(`season${side}`);
     const teamSelect = document.getElementById(`team${side}`);
@@ -82,22 +83,22 @@ function updateTeamDropdown(side) {
     if (!seasonSelect || !teamSelect) return;
 
     const selectedSeason = seasonSelect.value;
-    teamSelect.innerHTML = ""; // Clear old teams
+    teamSelect.innerHTML = ""; // Wipe the older options list clean
 
-    // Filter our team list to ONLY show teams matching the chosen season
+    // Filter our main team array to only pull rows matching the selected dropdown season
     const filteredTeams = teamDatabase.filter(row => {
         const rowSeason = row.season || row.Season || row.yr;
         return rowSeason === selectedSeason;
     });
 
-    // Sort team names alphabetically
+    // Sort alphabetically by team name
     filteredTeams.sort((a, b) => {
         const nameA = a.team || a.Team || a.tm || "";
         const nameB = b.team || b.Team || b.tm || "";
         return nameA.localeCompare(nameB);
     });
 
-    // Insert the filtered teams into the dropdown menu
+    // Append our filtered results to the dropdown items list
     filteredTeams.forEach(row => {
         const teamName = row.team || row.Team || row.tm;
         if (teamName) {
