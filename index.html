@@ -17,19 +17,27 @@
     <h1>🏀 NBA Matchup Simulator</h1>
     <p>Select two teams from your CSV data below:</p>
 
-    <div class="box">
+<div class="box">
+        <h3>Team A</h3>
+        <select id="seasonA" onchange="updateTeamDropdown('A')">
+            <option>Loading...</option>
+        </select>
         <select id="teamA">
-            <option>Loading teams...</option>
+            <option>Select Season First</option>
         </select>
         
-        <span>VS</span>
+        <hr style="border: 1px dashed #34495e; margin: 20px 0;">
         
+        <h3>Team B</h3>
+        <select id="seasonB" onchange="updateTeamDropdown('B')">
+            <option>Loading...</option>
+        </select>
         <select id="teamB">
-            <option>Loading teams...</option>
+            <option>Select Season First</option>
         </select>
         
-        <br>
-        <button onclick="alert('Simulation logic goes here next!')">Simulate Game</button>
+        <br><br>
+        <button onclick="alert('Simulation engine logic goes here next!')">Simulate Game</button>
     </div>
 
     <script src="script.js"></script>
