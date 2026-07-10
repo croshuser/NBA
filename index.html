@@ -5,34 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NBA Simulator</title>
     <style>
-        body { font-family: system-ui, sans-serif; max-width: 450px; margin: 40px auto; padding: 0 15px; }
-        label, select, button { display: block; width: 100%; margin: 8px 0; }
-        select, button { padding: 8px; font-size: 16px; }
+        body { font-family: sans-serif; margin: 2rem; background: #fff; color: #111; }
+        .container { max-width: 500px; margin: 0 auto; }
+        label, select, button { display: block; width: 100%; margin: 0.5rem 0; }
+        select, button { padding: 0.4rem; font-size: 1rem; }
         button { cursor: pointer; }
-        #result { margin-top: 20px; text-align: center; font-size: 18px; }
+        .home-select { margin: 1rem 0; }
+        .result { margin-top: 2rem; padding: 1rem; border: 1px solid #ccc; background: #f9f9f9; }
     </style>
 </head>
 <body>
-    <h1>NBA Matchup Simulator</h1>
+    <div class="container">
+        <h1>NBA Matchup Simulator</h1>
+        <p>Pick a season and team for both sides, then simulate.</p>
 
-    <label for="season">Season</label>
-    <select id="season"></select>
+        <label>Team A Season</label>
+        <select id="seasonA" onchange="updateTeamDropdown('A')"><option>Loading…</option></select>
+        <label>Team A</label>
+        <select id="teamA"><option>Select a season first</option></select>
 
-    <label for="teamA">Team A</label>
-    <select id="teamA"></select>
+        <label>Team B Season</label>
+        <select id="seasonB" onchange="updateTeamDropdown('B')"><option>Loading…</option></select>
+        <label>Team B</label>
+        <select id="teamB"><option>Select a season first</option></select>
 
-    <label for="teamB">Team B</label>
-    <select id="teamB"></select>
+        <div class="home-select">
+            <label>Home Court Advantage</label>
+            <select id="homeTeam">
+                <option value="none">Neutral court</option>
+                <option value="A">Team A is home</option>
+                <option value="B">Team B is home</option>
+            </select>
+        </div>
 
-    <label for="home">Home team</label>
-    <select id="home">
-        <option value="A">Team A</option>
-        <option value="B">Team B</option>
-    </select>
+        <button id="simulateBtn">Simulate Game</button>
 
-    <button id="simulate">Simulate Game</button>
-
-    <div id="result"></div>
+        <div class="result" id="resultBox" style="display:none;">
+            <strong>Result:</strong>
+            <pre id="resultText"></pre>
+        </div>
+    </div>
 
     <script src="script.js"></script>
 </body>
