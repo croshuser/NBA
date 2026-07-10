@@ -8,19 +8,16 @@ let playerDatabase = [];
 
 async function loadAndParseCSV() {
     try {
-        const response = await fetch('NBA DATA - Team Summaries (1).csv'); 
+        const response = await fetch('./NBA DATA - Team Summaries (1).csv'); 
         if (!response.ok) throw new Error("Could not find the CSV file.");
 
         const rawText = await response.text();
         const lines = rawText.split('\n');
         
-        // Grab headers for the Team section (Row 1)
         const teamHeaders = lines[0].split(',');
-        
-        // Grab headers for the Player section (Row 1909)
         const playerHeaders = lines[1908].split(',');
 
-        // 1. Loop through Team Summaries (Rows 2 to 1908)
+        // 1. Parse Team Summaries
         for (let i = 1; i < 1908; i++) {
             if (!lines[i].trim()) continue;
             const currentLine = lines[i].split(',');
@@ -32,8 +29,7 @@ async function loadAndParseCSV() {
             teamDatabase.push(rowObject);
         }
 
-        // 2. Loop through Player Data (Rows 1910 to the very end)
-        // TYPO FIXED HERE: changed "1login" back to a normal number "1"
+        // 2. Parse Player Data
         for (let i = 1; i < lines.length; i++) {
             if (i <= 1908) continue; 
             if (!lines[i].trim()) continue;
@@ -47,37 +43,65 @@ async function loadAndParseCSV() {
             playerDatabase.push(rowObject);
         }
 
-        console.log(`🟢 Success! Loaded ${teamDatabase.length} teams.`);
-        console.log(`🔥 Success! Loaded ${playerDatabase.length} individual player rows.`);
+        console.log(`🟢 Loaded ${teamDatabase.length} teams & ${playerDatabase.length} players.`);
         
-        setupDropdowns(teamDatabase);
+        // Populate our initial season dropdowns
+        setupSeasonDropdowns();
 
     } catch (error) {
         console.error("🔴 Error splitting stacked CSV file:", error.message);
     }
 }
 
-function setupDropdowns(teams) {
-    const selectA = document.getElementById("teamA");
-    const selectB = document.getElementById("teamB");
+function setupSeasonDropdowns() {
+    const seasonSelectA = document.getElementById("seasonA");
+    const seasonSelectB = document.getElementById("seasonB");
 
-    if (!selectA || !selectB) return;
+    // Extract all unique seasons from our data, sort them newest to oldest
+    const allSeasons = teamDatabase.map(row => row.season || row.Season || row.yr).filter(Boolean);
+    const uniqueSeasons = [...new Set(allSeasons)].sort((a, b) => b.localeCompare(a));
 
-    selectA.innerHTML = "";
-    selectB.innerHTML = "";
+    seasonSelectA.innerHTML = "";
+    seasonSelectB.innerHTML = "";
 
-    teams.forEach(row => {
-        const teamName = row.team || row.Team || row.tm; 
-        const seasonYear = row.season || row.Season || row.yr;
+    uniqueSeasons.forEach(season => {
+        seasonSelectA.options[seasonSelectA.options.length] = new Option(season, season);
+        seasonSelectB.options[seasonSelectB.options.length] = new Option(season, season);
+    });
 
-        if (teamName && seasonYear) {
-            const optionText = `${seasonYear} ${teamName}`;
-            const optionValue = `${seasonYear}_${teamName.replace(/\s+/g, '_')}`;
+    // Automatically trigger the team lists to load for the default selected seasons
+    updateTeamDropdown('A');
+    updateTeamDropdown('B');
+}
 
-            selectA.options[selectA.options.length] = new Option(optionText, optionValue);
-            selectB.options[selectB.options.length] = new Option(optionText, optionValue);
+// This function fires automatically whenever a user changes the season dropdown
+function updateTeamDropdown(side) {
+    const seasonSelect = document.getElementById(`season${side}`);
+    const teamSelect = document.getElementById(`team${side}`);
+    
+    if (!seasonSelect || !teamSelect) return;
+
+    const selectedSeason = seasonSelect.value;
+    teamSelect.innerHTML = ""; // Clear old teams
+
+    // Filter our team list to ONLY show teams matching the chosen season
+    const filteredTeams = teamDatabase.filter(row => {
+        const rowSeason = row.season || row.Season || row.yr;
+        return rowSeason === selectedSeason;
+    });
+
+    // Sort team names alphabetically
+    filteredTeams.sort((a, b) => {
+        const nameA = a.team || a.Team || a.tm || "";
+        const nameB = b.team || b.Team || b.tm || "";
+        return nameA.localeCompare(nameB);
+    });
+
+    // Insert the filtered teams into the dropdown menu
+    filteredTeams.forEach(row => {
+        const teamName = row.team || row.Team || row.tm;
+        if (teamName) {
+            teamSelect.options[teamSelect.options.length] = new Option(teamName, teamName);
         }
     });
-    
-    console.log("Dropdowns populated with clean team-only listings!");
 }
