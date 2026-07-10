@@ -8,7 +8,7 @@ let playerDatabase = [];
 
 async function loadAndParseCSV() {
     try {
-        const response = await fetch('./NBA DATA - Team Summaries (1).csv'); 
+        const response = await fetch('NBA DATA - Team Summaries (1).csv'); 
         if (!response.ok) throw new Error("Could not find the CSV file.");
 
         const rawText = await response.text();
